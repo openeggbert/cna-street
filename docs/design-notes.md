@@ -23,11 +23,14 @@ makes the whole street feel small in a way nobody can put their finger on.
 Street furniture matters most of all, because it is the scale reference a viewer
 actually uses. A building could be any size; a bench could not.
 
-## Everything is generated, and that is architectural
+## Every surface is generated, and that is architectural. Sixteen models are not.
 
-There is no downloaded texture, model, font or sound anywhere in this
-repository. That is not a way of avoiding a licence question — it is a set of
-properties worth having:
+That heading used to read "everything is generated", and the change is worth
+explaining rather than quietly making.
+
+There is still no downloaded texture, font or sound anywhere in this repository,
+and every surface, sign and glyph comes from code. That is not a way of avoiding
+a licence question — it is a set of properties worth having:
 
 * A generated surface can be produced at any resolution.
 * It tiles by construction, rather than because someone made it tile.
@@ -44,6 +47,22 @@ that greys as the binder wears off the stone, polished wheel paths, cut-and-fill
 patches over a service trench with a sealed lip, branching fatigue cracks, oil —
 not a call into a noise library. That is a lot of code for a road surface, and
 it is the difference between a road and a grey plane.
+
+**And there is a limit, which the shop windows found.** Thirty-nine ground-floor
+units want something in them, and modelling a kettle, a pair of sunglasses and a
+vase of flowers by hand in C++ is not a good use of anybody's time or a good
+demonstration of anything. So the props behind the glass are imported glTF
+models, compiled through CNA's own importer and content compiler — which is
+itself the point, because it exercises the framework's pipeline end to end
+rather than a second one written beside it.
+
+The rule that replaced "generate everything" is narrower and more defensible:
+*the street is generated, because a street is a set of relationships and a
+relationship is code; the objects standing in it may be authored, because an
+object is a shape and a shape is data.* And an authored object arrives with a
+licence, which is why `assets/external/manifest.json` records sixteen of them
+one at a time and `scripts/validate-assets.py` refuses to let an undeclared file
+reach the content build.
 
 ## The scale a texture is drawn at is a property of the material
 
@@ -151,20 +170,90 @@ the frame has both light and shade in it. This is the sort of thing that looks
 like a rendering bug, is diagnosed like a rendering bug, and is a composition
 decision.
 
-## People: posed, not skinned, on purpose
+## People: skinned after all, and what that cost
 
-A walking figure is generated at eight phases through one stride, and the
-simulation picks the phase that matches how far the pedestrian has walked. At
-1.35 m/s that is a new pose every 90 ms, which is smooth enough that nobody
-counts them, and it costs two draw calls per person instead of the skinned
-pipeline's per-bone state.
+This section used to argue that posing a figure at eight phases of a stride was
+a deliberate trade — smooth enough that nobody counts them, and cheaper than the
+skinned pipeline's per-bone state. The argument was sound and the conclusion was
+wrong, for a reason no amount of reasoning about *motion* was going to reach: the
+figures did not read as people, and the fault was never the animation. It was
+the silhouette. No neck, a cylinder for a torso, a sphere for a head, no hands
+worth the name.
 
-CNA *has* skeletal animation — `SkinnedEffect`, `AnimationClipEXT` — and with an
-authored rigged character it would be the right tool. Generating a rigged mesh
-procedurally, and a walk cycle to drive it, is a much larger piece of work whose
-visible result at the distance a street is seen from is the same figure moving
-the same way. The trade is deliberate and is stated in the header rather than
-left for a reader to wonder about.
+So they are skinned now: one mesh per person on a nineteen-bone skeleton,
+weighted by distance, animated by `AnimationPlayer` into `SkinnedPbrEffect` from
+walk and idle clips built in code. Three things are worth writing down.
+
+**The bind is off by one in the direction that looks right.** A bone catches the
+flesh of the limbs running *out* of it to its children, not the limb running
+into it from its parent. Measuring the latter is defensible on paper and puts
+the upper arm's flesh on the forearm bone, so every limb bends about the wrong
+joint — and it looks like a rigging problem rather than an indexing one.
+
+**A keyframe replaces a bone's whole local transform.** A track that leaves the
+translation at zero collapses its bone onto its parent. The first figures had no
+legs and one arm growing out of the neck, which is not a subtle failure and was
+still not obviously a *keyframe* failure.
+
+**The modelling errors outlive the rig.** With the skeleton correct and the
+clips playing, the figures still read as mannequins, and the three causes were
+all geometry: an arm whose first section sat above the shoulder line beside the
+neck, which is a wing; a hairline ring drawn low enough to cross the eyes, which
+is a welding mask; and hand sections eight centimetres across and ten deep,
+which is a boxing glove. None of those is visible in a diff and all three are
+obvious the moment a figure is stood at two metres and looked at.
+
+That last point is the general one. The animation was the interesting problem
+and the silhouette was the one that mattered.
+
+**What it costs.** A skinned figure cannot be instanced — each carries its own
+bone palette — so it is one draw per material at every distance. The material
+set therefore collapses past twenty metres: shoes and bag onto the trousers,
+eyes onto the hair, hair onto the trousers, three draws instead of six for a
+figure that is fifty pixels tall. And people have a cull distance of their own,
+because a person at 210 m is under four pixels and costs the same three draws as
+a person at three metres.
+
+## A factor and a map are not the same number
+
+`PbrEffect` computes `roughness = map.g * roughnessFactor`. That is glTF's rule,
+it is the right rule, and this catalogue broke it on every one of sixty-odd
+surfaces in the most plausible way there is: the generator is handed the
+surface's roughness, writes it into the map with its own variation around it,
+and then the material declares *the same number* as the factor. The product is
+the square.
+
+Nothing about that looks wrong in a diff. `pbr(0.62f, 0.0f)` beside
+`paintedMetal(size, seed, rgb, 0.62f)` reads as two statements of one intent,
+and it is two multiplications. What gave it away was printing both columns:
+
+```
+painted        R: 0.380 x 0.422 = 0.160
+sign-street    R: 0.300 x 0.372 = 0.112
+wheel-track    R: 0.580 x 0.670 = 0.389
+car-body       R: 0.160 x 0.086 = 0.014
+```
+
+Sixty rows where the factor and the map mean are the same number twice. Painted
+metal asked for 0.38 and got a gloss lacquer, so every lamp post, bollard, bin,
+sign back and window frame in the city was lacquered. A wheel track asked for
+0.58 and got 0.39, which is why the carriageway looked wet from a low camera.
+
+Metalness failed the other way and silently. A material that declares itself
+metal over a map whose blue channel is zero is a dielectric however emphatic the
+declaration, so every galvanised post and alloy wheel in the scene was plastic
+and a metallic basecoat had its flake multiplied out by a factor of zero.
+
+The fix divides each declared factor by what the generator actually wrote, so
+the product averages the declaration and keeps the map's spatial detail in
+proportion. The divisors are measured at bake time and travel with the compiled
+content, because the content path never runs a generator and a fix that only
+works when the textures are generated is not a fix.
+
+The transferable part is not the arithmetic. It is that a rendering bug spread
+evenly over every surface in a scene does not look like a bug — it looks like a
+*style*, and the only way to find it was to stop looking at the picture and
+print the numbers.
 
 ## Two placement loops that must agree, in one place
 

@@ -128,17 +128,61 @@ textures look worse than generating them. The fix is `feat/cnb-source-mipmaps`
 on `openeggbert/cna`; `docs/patches/` carries the same commit as a patch, with a
 README saying what it is and how to apply it.
 
+## The visual overhaul
+
+A second pass over the whole project with the *rendered result* as the
+acceptance criterion rather than the code. What changed, in the order the
+defects were found by looking at pictures:
+
+* **Lighting.** Two independent bugs made the street cold and flat: the sun's
+  colour was taken from the sky's radiance beside the disc, which is scattered
+  light and therefore blue, and the environment cube was Reinhard-and-sRGB
+  encoded but read as linear. Sun colour is now atmospheric transmittance along
+  the solar path, and the cube is a plain linear quantiser with its scale on
+  `ImageBasedLightEXT::Intensity`.
+* **The PBR catalogue.** `PbrEffect` multiplies the factor by the map, and this
+  catalogue was writing the intended value into both, so every roughness in the
+  city was its own square and every declared metal was a dielectric. The factors
+  are now divided by what the generators actually wrote, and the divisors travel
+  with the compiled content.
+* **Vehicles.** Twelve variants over six classes, lofted from monotone-cubic
+  profile curves with wheel arches cut into the body, separate rolling and
+  steering wheels, interiors, lamps and plates, turning through the junction.
+* **People.** One mesh on a nineteen-bone skeleton, skinned by distance to the
+  limbs running *out* of each bone, animated by `AnimationPlayer` into
+  `SkinnedPbrEffect` from clips built in code — and then three separate
+  modelling errors found by standing one at two metres and looking at it:
+  shoulder wings, a hairline drawn across the eyes, and hands the wrong way
+  round.
+* **Shops.** Every ground-floor unit is a room with fittings, stock, a counter
+  and lit ceiling strips, dressed from imported glTF props, with its trade
+  decided once per plot so the fascia and the fittings cannot disagree.
+* **Surfaces.** Asphalt at four times the resolution with resolvable aggregate,
+  a footway of sixty-four slabs rather than nine, and the crack, oil and patch
+  fields cut back to what a road has rather than what noise makes easy.
+* **Vegetation.** Trees with a recursive branch structure, foliage hung at
+  three points along every twig and on the two levels above, and vertex normals
+  bent toward the crown's outward direction so a canopy shades like a ball.
+* **Night.** `--night`, and the street lights itself.
+* **Performance.** +15% over the pre-overhaul baseline, after finding that the
+  cost was draw calls rather than triangles and taking 1 997 of them to 1 356.
+
 ## Next
 
-* **Reflections.** Screen-space reflections are wired to a setting and off. A
-  shop window that reflects the car parked in front of it is a visible step up
-  at eye level.
-* **Skinned pedestrians.** The posed figures are a deliberate trade, but an
-  authored rigged character through `SkinnedEffect` and `AnimationClipEXT`
-  would exercise a part of CNA this does not.
-* **Turning traffic.** Four straight lanes is the right level of detail for
-  environmental traffic, but a right turn across the junction would make the
-  signal phases mean more.
+* **Reflections.** Screen-space reflections were tried and dropped: they wash
+  out a shop interior and cannot reach alpha-blended glass at all, and the road
+  is far rougher than any SSR cutoff. A shop window that reflects the car parked
+  in front of it needs either a planar reflection or glass drawn before the
+  pass.
+* **An imported rig that draws.** `GLTF-208` is unresolved: the skeleton, the
+  clip and the palette all round-trip correctly through the compiled model and
+  the mesh renders nothing. The index element size and the vertex/index offsets
+  for a non-first mesh part are the two things not yet ruled out.
+* **A character texture atlas.** Skinned figures cannot be instanced, so a
+  person costs three draws at any distance. One material per figure would make
+  it one, and it is the largest remaining draw-call item.
+* **A skinned shadow caster in CNA.** CNA-F14. Every character currently casts
+  with a rigid stand-in in its bind pose.
 * **Audio.** CNA's audio module works; the demo has nothing to play through it.
 * **A measured `low` preset.** Its decisions are reasoned rather than measured,
   because this environment has only a software rasteriser.

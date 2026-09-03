@@ -121,3 +121,33 @@ So the plan is not "stop generating". It is:
   clean and reachable, because exercising that path is one of the reasons this
   application exists;
 - and **fix the values**, which is free.
+
+
+---
+
+## A correction to this audit
+
+**The frame time recorded above is wrong, and the way it was wrong is worth
+keeping.** It was read off the debug overlay, whose headline is an *exponential*
+average that had not converged: it said 214 ms on a frame that took 778, and an
+earlier reading of 122 ms was the same error on the baseline. Every performance
+number in this project was re-measured with `--frames N`, which discards six
+warm-up frames, collects the rest and prints mean, median, p95, min and max.
+
+The corrected baseline for `c4f80ce`, viewpoint 1, 1024 × 576, `high` preset,
+26 frames, no overlay, on this machine:
+
+| | |
+| --- | --- |
+| median frame | 413–434 ms |
+| p95 | 446–475 ms |
+| draw calls | 1 159 |
+| shadow draw calls | 2 269 |
+| triangles drawn per frame | 531 045 |
+
+Run-to-run variation here is about ±60 ms, so every before/after comparison in
+`performance.md` was measured by interleaving the two builds in one session
+rather than running one and then the other.
+
+The audit's *visual* findings stand unchanged. It is only the number that was
+measured with the wrong instrument.
