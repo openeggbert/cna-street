@@ -14,6 +14,20 @@ Baselines: CNA `next` `7560966`, sharp-runtime `next` `bd282d1`, easy-gl
 `develop` `deda7a4`, meta-gl `develop` `2520173`. Renderer `OPENGL33` (EasyGL)
 on Mesa 25.2 / llvmpipe.
 
+**This file is the inventory.** What to do about it — every finding re-checked
+against CNA at `feat/cnb-source-mipmaps` `3471395`, sorted into blockers and
+improvements, with a repair order, the `cna-street` work that each fix unblocks,
+and a startup checklist for a session beginning cold — is
+`cna-followup-after-framework-work.md`. Read that before starting on any of
+these; three of them look different now than they did when they were written,
+and CNA-F12 is fixed.
+
+**The `GLTF-2xx` numbers here are this project's, and two of them collide with
+CNA's own.** In CNA's tracker `GLTF-207` and `GLTF-208` are about per-part
+sampler state, not skin metadata and not a skinned draw. When raising these
+upstream, use the aliases `CNASTREET-SKINMETA` (for `GLTF-207` below) and
+`CNASTREET-SKINDRAW` (for `GLTF-208` below).
+
 ---
 
 ## CNA-F1 — vendored single-header include paths resolve into the consumer
@@ -384,6 +398,9 @@ same way `cna_tool_source_to_cnb --mipmaps` does for a standalone texture.
 
 ## GLTF-207 — a model's skin is on `SkinsEXT` or on `Tag`, depending on how it was loaded
 
+**Upstream alias: `CNASTREET-SKINMETA`.** CNA's own `GLTF-207` is a different
+issue; see the note at the top of this file.
+
 **Where.** `Model::getSkinsEXTProperty()` versus `Model::getTagProperty()`.
 
 **What happens.** The same glTF file, imported by the same importer, exposes its
@@ -418,6 +435,12 @@ alias it already is.
 ---
 
 ## GLTF-208 — an imported skinned mesh part draws nothing through `SkinnedPbrEffect`
+
+**Upstream alias: `CNASTREET-SKINDRAW`.** CNA's own `GLTF-208` is a different
+issue; see the note at the top of this file. Since this entry was written,
+16-bit index element size has been ruled out: the imported models that *do*
+draw use it too. `cna-followup-after-framework-work.md` has the full
+elimination list and the next experiment.
 
 **Status: unresolved.** Recorded because it is reproducible and because the
 alternative was to ship a feature that renders nothing.

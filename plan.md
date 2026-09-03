@@ -121,12 +121,17 @@ would have to happen if that ever changed.
 
 ## CNA issues found
 
-`docs/cna-findings.md` has all twelve with reproductions, severities and
+`docs/cna-findings.md` has all seventeen with reproductions, severities and
 workarounds. The one that was fixed rather than worked around is CNA-F12: the
 content pipeline could not produce a mip chain, which made compiling a scene's
 textures look worse than generating them. The fix is `feat/cnb-source-mipmaps`
 on `openeggbert/cna`; `docs/patches/` carries the same commit as a patch, with a
 README saying what it is and how to apply it.
+
+`docs/cna-followup-after-framework-work.md` is the other half: the same
+findings re-checked against the CNA tree as it stands, sorted into what blocks
+the next phase of this project and what does not, with a repair order and the
+work that follows each fix.
 
 ## The visual overhaul
 
@@ -176,8 +181,9 @@ defects were found by looking at pictures:
   pass.
 * **An imported rig that draws.** `GLTF-208` is unresolved: the skeleton, the
   clip and the palette all round-trip correctly through the compiled model and
-  the mesh renders nothing. The index element size and the vertex/index offsets
-  for a non-first mesh part are the two things not yet ruled out.
+  the mesh renders nothing. Index element size is now ruled out — the models
+  that do draw use 16-bit indices too. What is left, and the experiment worth
+  running first, is in `docs/cna-followup-after-framework-work.md`.
 * **A character texture atlas.** Skinned figures cannot be instanced, so a
   person costs three draws at any distance. One material per figure would make
   it one, and it is the largest remaining draw-call item.
@@ -187,6 +193,35 @@ defects were found by looking at pictures:
 * **A measured `low` preset.** Its decisions are reasoned rather than measured,
   because this environment has only a software rasteriser.
 
+## Deferred until the CNA working tree is available
+
+Everything above that needs a change *inside* CNA is parked, not abandoned. It
+is written up in **`docs/cna-followup-after-framework-work.md`**: a repository
+concurrency warning to read first, the seventeen findings re-checked against
+the CNA tree as it stands, a repair order, and a startup checklist for a
+session that begins with no memory of this one.
+
+Three of the seventeen block the next flagship phase — GLTF-208, GLTF-207 and
+CNA-F14, in that order, all in the same area of CNA. The rest are improvements
+or already fixed upstream.
+
+The sequence after those land, in dependency order:
+
+1. Integrate the fixed CNA baseline: rebuild, re-run the tests, re-shoot the
+   screenshot set, update `dependencies.lock`.
+2. Remove the workarounds one at a time, each proven unnecessary before it goes
+   — the `SkinsEXT`/`Tag` dual path, the sRGB-encode override, the sky flip,
+   the shadow-bias constant.
+3. Put an imported animated pedestrian in the crowd, which is what GLTF-208
+   was blocking.
+4. Imported authored vehicles, then vegetation assets.
+5. Reflections, then a true many-light night mode.
+6. A final realism pass with no framework dependency left in it.
+
+Phases 3 onward each need an asset with a verified licence before they start.
+The detail, including what must *not* happen, is in the handoff.
+
 ## Blockers
 
-None.
+None in this repository. The three CNA-side blockers are named above; they
+block the next phase, not the current state.
