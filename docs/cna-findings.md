@@ -340,6 +340,130 @@ purely aesthetic falloff.
 
 ---
 
+## CNA-F14 — a skinned figure cannot cast its own shadow
+
+**Where.** `CNA::Graphics::CascadedShadowMap::getCasterEffect()`.
+
+**What happens.** The caster program takes its world matrix from a uniform and
+knows nothing about a bone palette, so there is no way to write a skinned mesh
+into a cascade in its animated pose. A character rendered with
+`SkinnedPbrEffect` therefore has no shadow at all, which on a sunlit pavement is
+one of the loudest things a renderer can get wrong: a person with no shadow does
+not stand on the ground, they float above it.
+
+**Workaround here.** Every character carries a rigid stand-in in its bind pose,
+at half the section count, submitted shadow-only. At the sun angles a street is
+lit by, that is a long thin blob on the pavement either way.
+
+**Proposed fix.** A skinned variant of the caster program, taking the same bone
+palette uniform `SkinnedPbrEffect` already takes. The vertex work is the same
+skinning it already does; only the fragment stage differs.
+
+---
+
+## GLTF-206 — imported glTF textures arrive without a mip chain
+
+**Where.** The runtime glTF path and the compiled `.cnb` path both, for textures
+referenced by an imported model.
+
+**What happens.** The application's own surfaces are uploaded with a full mip
+chain built by box-filtering the source (see CNA-F12, fixed in CNA for the
+`source_to_cnb` path). The images an imported model refers to come in as plain
+external `.jpg`/`.png` references and are uploaded at their top level only. A
+4K product-shot texture on a 40 cm prop, minified to a few dozen pixels, aliases
+into a shimmering mess whenever the camera moves.
+
+**Workaround here.** None. The imported props are small, behind glass, and
+culled at 22 m, which keeps the minification ratio low enough that it does not
+dominate. It is still visible if you look for it.
+
+**Proposed fix.** Generate mips for model-referenced textures at import, the
+same way `cna_tool_source_to_cnb --mipmaps` does for a standalone texture.
+
+---
+
+## GLTF-207 — a model's skin is on `SkinsEXT` or on `Tag`, depending on how it was loaded
+
+**Where.** `Model::getSkinsEXTProperty()` versus `Model::getTagProperty()`.
+
+**What happens.** The same glTF file, imported by the same importer, exposes its
+skeleton through a different API depending on whether it was loaded directly or
+compiled to `.cnb` first:
+
+| load path | `SkinsEXT` | `Tag` |
+|---|---|---|
+| `Load<Model>` on a `.gltf`/`.glb` | populated | first skin, for compatibility |
+| `Load<Model>` on a compiled `.cnb` | **empty** | the `SkinningData` |
+
+`SkinsEXT` is the better API — it says which meshes each skin's palette drives,
+and `Tag` holds one object and already contends with `ModelAnimationsEXT` for it
+(a limitation CNA itself records as GLTF-295). A caller written against
+`SkinsEXT`, which is what the header recommends, gets an empty vector from every
+model that went through the content pipeline, with no diagnostic. That is the
+wrong way round: the compiled path is the one a shipping application uses.
+
+**Reproduction.** Compile any skinned model with `cna_tool_gltf_to_cnb`, load it
+with `ContentManager::Load<Model>`, and read `getSkinsEXTProperty()`. The `.cnb`
+contains `MSKL` and `MANM` chunks and the skin is there; the collection is empty.
+
+**Workaround here.** `ModelLibrary::loadRig` checks `SkinsEXT` first and falls
+back to `dynamic_cast<SkinningData*>(model->getTagProperty())`, taking every
+mesh in the model as the skin's when it has to use the fallback — `Tag` does not
+say which meshes the palette drives.
+
+**Proposed fix.** Have the `.cnb` model reader populate `SkinsEXT` from the
+`MSKL`/`MANM` chunks as the glTF reader does, keeping `Tag` as the compatibility
+alias it already is.
+
+---
+
+## GLTF-208 — an imported skinned mesh part draws nothing through `SkinnedPbrEffect`
+
+**Status: unresolved.** Recorded because it is reproducible and because the
+alternative was to ship a feature that renders nothing.
+
+**Where.** Drawing an imported `ModelMeshPart`'s own vertex and index buffers
+through `SkinnedPbrEffect` with a palette from `AnimationPlayer`.
+
+**What happens.** Nothing is drawn. Everything that can be checked, checks out:
+
+- The model loads. `cesium-man.cnb` reports 1 mesh part, 4 672 triangles, and
+  1.531 m tall as authored.
+- The skeleton loads: 19 bones with a hierarchy, bind pose and inverse bind
+  pose, and one named clip (`Clip0`).
+- `AnimationPlayer::StartClip` and `Update` succeed and `GetSkinTransforms()`
+  returns 19 well-formed matrices — the first is near-identity with a 3.5 cm
+  translation, which is what a root bone should look like.
+- The material is opaque, base colour white, with its texture bound.
+- The world transform is correct: the figure is submitted at (-7.59, 0.14,
+  26.00), which is where it was asked to stand, at a scale of 1.14.
+- **The vertex declaration matches the effect's byte for byte**: stride 68,
+  Position@0, Normal@12, Tangent@24, TextureCoordinate@40, BlendWeight@48,
+  BlendIndices@64, same formats in the same order as
+  `VertexPositionNormalTangentTextureSkinned`.
+
+Drawing the same part rigidly through `PbrEffect` also renders nothing, while
+every *unskinned* imported model in the same scene renders correctly through
+that path — so this is not the skinning, and not the placement.
+
+**What was ruled out.** Winding (double-siding the material changed nothing);
+the culling volume (rebuilt from a transformed centre and radius rather than two
+transformed corners, which was a real bug in the caller and fixed); the vertex
+layout; the palette; the material; the transform.
+
+**What has not been ruled out.** The index buffer's element size — the compiled
+part uses 16-bit indices where every generated mesh in this project uses 32-bit
+— and the interaction between `getVertexOffsetProperty`/`getStartIndexProperty`
+and `DrawIndexedPrimitives` for a part that is not the first in its buffer.
+
+**State here.** `ModelLibrary::loadRig` is kept and is called at start-up, so
+the round trip — glTF to `.cnb` to `Model` to `SkinningData` to
+`AnimationPlayer` — is exercised and logged on every run. The figure is *not*
+placed in the crowd. An invisible pedestrian on the pavement, plus a line in the
+documentation claiming it walks there, would be worse than a missing feature.
+
+---
+
 ## Not defects — behaviour worth knowing
 
 * **`CNA_CNAEXT` defaults to `OFF`.** Every `CNA/Graphics/*.hpp` header is
