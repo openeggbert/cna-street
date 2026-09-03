@@ -297,9 +297,11 @@ recedes, while normals, roughness and masks must be averaged exactly as stored.
 `--mip-color-space` defaults to `linear`; this project's content build passes
 `srgb` for albedo and emissive maps and leaves the rest alone.
 
-**Where.** Branch `feat/cnb-source-mipmaps` in the CNA checkout, exported as
-`docs/patches/0001-feat-cnb-generate-mip-chains-when-compiling-a-source.patch`.
-It carries five GTest cases in CNA's own suite; `tests/ContentPipelineTests.cpp`
+**Where.** Commit `347139500` on branch `feat/cnb-source-mipmaps`, pushed to
+`openeggbert/cna`, and kept here as
+`docs/patches/0001-feat-cnb-generate-mip-chains-when-compiling-a-source.patch`
+so this repository carries its own record of what it asked of the framework. It
+carries five GTest cases in CNA's own suite; `tests/ContentPipelineTests.cpp`
 here exercises the same function, because a regression in it would silently make
 this project's content path worse than its procedural one.
 

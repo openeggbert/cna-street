@@ -124,7 +124,9 @@ would have to happen if that ever changed.
 `docs/cna-findings.md` has all twelve with reproductions, severities and
 workarounds. The one that was fixed rather than worked around is CNA-F12: the
 content pipeline could not produce a mip chain, which made compiling a scene's
-textures look worse than generating them. `docs/patches/` carries the commit.
+textures look worse than generating them. The fix is `feat/cnb-source-mipmaps`
+on `openeggbert/cna`; `docs/patches/` carries the same commit as a patch, with a
+README saying what it is and how to apply it.
 
 ## Next
 
