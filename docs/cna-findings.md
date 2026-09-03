@@ -305,6 +305,39 @@ this project's content path worse than its procedural one.
 
 ---
 
+## CNA-F13 — the light-shaft pass ghosts, and its sample count is not settable
+
+**Severity:** low — visible, and tunable around
+
+**Affected API.** `RenderPipelineSettings::setLightShaftIntensity` /
+`setLightShaftThreshold` / `setLightShaftDecay`.
+
+**What happens.** The radial blur that produces the shafts takes a fixed number
+of samples, and `decay` decides how far across the screen those samples are
+spread. At a decay near the default-ish 0.965 they are far enough apart that
+each one lands as a *discrete* smeared copy of whatever seeded it rather than
+blending into a ray.
+
+With a threshold low enough to catch a sunlit façade's window frames — 0.82 in
+this project's first attempt — the result is a chain of ghost windows climbing
+diagonally across the sky from the sun's screen position. It looks exactly like
+floating geometry, and it was diagnosed as floating geometry twice before the
+FOV-dependence gave it away: a screen-space artefact moves when the field of
+view changes and a building does not.
+
+**Reproduction.** Point a camera up at a sunlit façade with the sun just off
+screen, `setLightShaftThreshold(0.82f)`, `setLightShaftDecay(0.965f)`.
+
+**Workaround here.** Threshold 0.995 so only the sun disc and the hottest
+speculars seed a shaft, decay 0.86 so the samples overlap, intensity 0.32.
+
+**Proposed fix.** Expose the sample count, or scale it with the decay so that a
+long shaft is sampled more finely than a short one. Failing that, say in the
+doc comment what decay does to the sampling, because the parameter reads like a
+purely aesthetic falloff.
+
+---
+
 ## Not defects — behaviour worth knowing
 
 * **`CNA_CNAEXT` defaults to `OFF`.** Every `CNA/Graphics/*.hpp` header is
