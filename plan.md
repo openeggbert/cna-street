@@ -55,7 +55,10 @@ generating. It needed a mip-chain generator contributed to CNA to be worth
 having.
 
 **Phase 15 — tests.** Eight suites, registered with CTest, over the logic that
-has no picture. Two found live bugs on their first run.
+has no picture. Two found live bugs on their first run. Plus image-based
+screenshot regression: a fixed-step capture clock makes two runs of an unchanged
+build bit-identical, and `scripts/check-screenshots.sh` compares every named
+viewpoint against the committed set.
 
 **Phase 16 — documentation.** `README.md`, `docs/design-notes.md`,
 `docs/cna-findings.md`, `assets/ATTRIBUTION.md`, and the screenshot set.
@@ -137,8 +140,6 @@ textures look worse than generating them. `docs/patches/` carries the commit.
 * **Audio.** CNA's audio module works; the demo has nothing to play through it.
 * **A measured `low` preset.** Its decisions are reasoned rather than measured,
   because this environment has only a software rasteriser.
-* **Image-based screenshot regression.** The viewpoints are stable and
-  `--capture` is deterministic, so the comparison is the missing half.
 
 ## Blockers
 
