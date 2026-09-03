@@ -256,6 +256,55 @@ accessor.
 
 ---
 
+## CNA-F12 — the content pipeline could not produce a mip chain **(fixed in CNA)**
+
+**Severity:** high — it made the content pipeline worse than not using it
+
+**Affected API.** `cna_tool_source_to_cnb`,
+`CNA::Content::Cnb::ImportImageAsCnbTexture2D`.
+
+**What happens.** Every texture compiled by `cna_tool_source_to_cnb` has
+exactly one mip level. The container is not the limitation: `TEXH` declares a
+mip count, `TEXD` carries one payload per level, `CnbMaxTextureMipLevels` is 16
+and the `Texture2D` loader uploads every level it finds. Nothing produced one.
+
+**Reproduction.**
+
+```
+cna_tool_source_to_cnb road.png road.cnb --name road
+cna_tool_cnb_info road.cnb        # -> Texture2D 512x512 Rgba8, 1 level
+```
+
+Then load it and look at a road surface at a grazing angle. The whole
+carriageway shimmers, the paving speckles, and the façades crawl — worse than
+the same textures generated at run time with a chain built by hand, which is
+not a trade anyone should have to make. The screenshots that found this are in
+the history of this project: the first content build was visibly worse than the
+procedural path it replaced.
+
+**Workaround here.** None was adopted. Generating the chain in the application
+after loading would need a `GetData` readback per texture and a second upload,
+which throws away most of what the pipeline is for.
+
+**Fix.** Contributed to CNA rather than worked around, because the missing
+piece belongs in the codec:
+`CNA::Content::Cnb::GenerateRgba8MipChain(CnbTextureData&, CnbMipColorSpace)`
+box-filters a single-level Rgba8 description into a complete chain, and
+`--mipmaps` on the compiler asks for it. The colour space is an argument
+rather than an assumption: averaging four sRGB-encoded texels treats an encoded
+value as a quantity of light, so a colour map averaged that way dims as it
+recedes, while normals, roughness and masks must be averaged exactly as stored.
+`--mip-color-space` defaults to `linear`; this project's content build passes
+`srgb` for albedo and emissive maps and leaves the rest alone.
+
+**Where.** Branch `feat/cnb-source-mipmaps` in the CNA checkout, exported as
+`docs/patches/0001-feat-cnb-generate-mip-chains-when-compiling-a-source.patch`.
+It carries five GTest cases in CNA's own suite; `tests/ContentPipelineTests.cpp`
+here exercises the same function, because a regression in it would silently make
+this project's content path worse than its procedural one.
+
+---
+
 ## Not defects — behaviour worth knowing
 
 * **`CNA_CNAEXT` defaults to `OFF`.** Every `CNA/Graphics/*.hpp` header is
