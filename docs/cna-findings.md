@@ -394,6 +394,22 @@ dominate. It is still visible if you look for it.
 **Proposed fix.** Generate mips for model-referenced textures at import, the
 same way `cna_tool_source_to_cnb --mipmaps` does for a standalone texture.
 
+**Worked around in the fifth pass, on this side.** `ContentManager` looks for
+`<name>.cnb` before it looks for a loose `<name>` (its documented precedence
+is xnb > cnb > literal > cnj > loose), and a compiled model refers to its
+images by their full file name, `car-honda-civic-ek_tex0.png`. So the content
+build now compiles every image a model refers to under that full name --
+`car-honda-civic-ek_tex0.png.cnb` -- through `cna_tool_source_to_cnb
+--mipmaps`, in the colour space `scripts/model-textures.py` reads off the
+model's `.cnj` (sRGB for a base colour or an emissive, linear for a normal,
+metallic-roughness or occlusion map), and leaves the loose image beside it.
+The model loads exactly as before and its textures arrive with a chain;
+`ModelLibrary` logs any map that still has one level. Every scanned prop,
+tree and car in the scene now has a mip chain, and the two cars parked
+nearest the close viewpoints carry 2k paint that no longer shimmers at
+twenty metres. The framework-side fix above is still the right one -- this
+is a build step every consumer of the importer would have to repeat.
+
 ---
 
 ## GLTF-207 — a model's skin is on `SkinsEXT` or on `Tag`, depending on how it was loaded
