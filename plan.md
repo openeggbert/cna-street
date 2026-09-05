@@ -257,21 +257,62 @@ below is in `docs/visual-overhaul-3/`, with before and after frames.
   multi-file assets, derived files and scanned surfaces, and the gate
   registered with CTest.
 
+## The fourth visual pass
+
+A fifth pass, with the narrowest brief so far: not the renderer but the
+objects the viewer looks at first. Everything below is in
+`docs/visual-overhaul-4/`, with before and after frames.
+
+* **Hero cars.** Eight authored car models under CC-BY from Sketchfab authors
+  publishing their own work, fetched from the Objaverse mirror with the
+  provenance the file embeds, normalised in Blender by
+  `scripts/blender-vehicles.py` and dealt into the parked bays of the hero
+  corridor in place of the lofts, which stay in the simulation undrawn.
+* **Hero people.** Eight people built from MakeHuman's CC0 base mesh and
+  wardrobe with MPFB in Blender by `scripts/blender-people.py`, posed with the
+  arms down, their authored weights folded onto this project's nineteen bones,
+  and written in this project's own character format for `CharacterLibrary`
+  to read -- the path around GLTF-208, which still stands. They drop into the
+  crowd on the same skeleton and clips as the generated figures they replace.
+* **Three tree species.** A broad island tree and a mature jacaranda beside
+  the small tree, cut by the LOD script (which learned glTF input), planted
+  over the whole main street within eighty metres of the junction, the
+  generated trees beyond.
+* **Architectural depth.** Chamfered sills, lintels, string courses, cornices,
+  pilasters, balcony nosings and thresholds; projecting window surrounds on
+  the flat elevations; brackets under the balconies; every shop door set back
+  into a reveal with a threshold and a pull handle; meter cabinets, vents,
+  conduit runs, scanned cameras over the shop doors and scanned condenser
+  units beside the upper windows.
+* **The hero cafe.** One shop built as a composed room -- counter and glass
+  case, bread shelving, coffee station, pendants, a back door into a darker
+  store, a dressed window, cafe tables -- with thirty-eight scanned props
+  anchored by the interior generator and stood up by the scene.
+* **Two CNA findings**, both worked around in the asset pipeline: CNA-F15, an
+  imported single-sided glTF part draws inside out under the default cull
+  (every earlier import was double-sided, which hid it), and GLTF-209, an
+  instanced draw refuses a mesh with a second UV set or a colour attribute.
+* **The manifest** grew a tools list for the Blender extension the people are
+  built with, derived folders, and the credits CC-BY asks for, generated into
+  `assets/ATTRIBUTION.md`.
+
 ## Next
 
-* **Vehicles.** The one thing in the hero corridor that is still a loft rather
-  than a scan. No realistic car under a licence this repository can carry was
-  found on Poly Haven or in the Khronos set; the covered car is the one scanned
-  vehicle. Better body curvature, real panel shut lines and a clearcoat are
-  the next procedural step, and a licensed hero car the step after.
-* **People.** Still mannequins at four metres, and the showcase viewpoints now
-  keep them out of the foreground for that reason. A textured, rigged figure
-  under a clean licence -- or the imported rig once GLTF-208 is understood --
-  is the answer; more generator work is not.
-* **Shop interiors.** Rooms with a real floor now, and props with their
-  textures at last, and still shelves of packets behind a pale plinth. Scanned
-  shelving and stock, and a darker, deeper room, are where the next pass
-  starts.
+* **Moving traffic.** Only the parked cars are authored; a car driving past
+  the camera is still a loft, because the authored models do not separate
+  their wheels and a moving car needs wheels that turn. Splitting the wheels
+  by node in the Blender step and submitting them the way the lofts' are is
+  the next step.
+* **Faces at two metres.** MakeHuman's skins are painted, and at
+  conversational distance a painted face is a painted face; at four metres,
+  where a street is seen from, they hold. A scanned skin under CC0, or a
+  higher-resolution skin texture, is the next step for the close viewpoints.
+* **Mips for imported images.** GLTF-206 caps every scanned prop and every
+  car at 1k. Loading a model's own images through the catalogue's compiler --
+  which `scripts/blender-people.py` already does for the people -- would lift
+  the cap for the cars too.
+* **The other shops.** One is composed; the rest are dressed boxes. The hero
+  cafe is the template.
 * **Dynamic reflections.** The probes hold the static street. A moving car is
   reflected in a shop window only through the sky cube, and a person not at
   all. A probe re-captured every few frames near the camera, or a planar
@@ -282,10 +323,6 @@ below is in `docs/visual-overhaul-3/`, with before and after frames.
   building lines would need the reflection direction remapped in the shader,
   which `PbrEffect` does not expose; a custom `ShaderEffect` for glass alone
   could do it.
-* **People.** Still the weakest thing at two metres: a face is two eyes, a
-  brow and a nose, and the clothing is one colour per garment. Faces and
-  garment detail are texture work, and a texture atlas per figure is also the
-  largest remaining draw-call saving.
 * **An imported rig that draws.** `GLTF-208` is unresolved: the skeleton, the
   clip and the palette all round-trip correctly through the compiled model and
   the mesh renders nothing. Index element size is now ruled out — the models
