@@ -487,6 +487,69 @@ documentation claiming it walks there, would be worse than a missing feature.
 
 ---
 
+## CNA-F15 — an imported glTF mesh with a single-sided material draws inside out
+
+**Severity:** medium (silent wrong output, and every earlier import hid it)
+**Affected:** `GltfImportCore` (winding kept as authored) together with
+`RasterizerState::CullCounterClockwise` (CNA-F5's convention)
+
+**What happens.** glTF winds a front face counter-clockwise. CNA's importer
+keeps that order (it only reports a mirrored node as "winding unchanged", see
+its `mirrored-winding-unapplied` diagnostic) and CNA's default cull state
+drops counter-clockwise faces, so an imported part whose material is
+`doubleSided: false` renders with its front faces culled: a car body shows
+its far flank through its near one, with the interior visible through both.
+
+**Why it went unnoticed for four passes.** Every model imported before the
+fourth pass -- the Khronos samples, the twenty Poly Haven scans, the hero
+tree -- ships with `doubleSided: true`, under which the cull is off and the
+winding does not matter. The first single-sided material to arrive (a
+Sketchfab car body, in the fourth pass) drew as an X-ray, and the people
+exported from Blender in this project's own format did the same until their
+triangles were reversed.
+
+**Reproduction.** Compile any glTF whose materials are single-sided --
+Blender's exporter writes `doubleSided: false` whenever a material has
+backface culling on -- and draw a part with `CullCounterClockwise`.
+
+**Workaround here.** `scripts/blender-vehicles.py` reverses the index order of
+every triangle in the derived GLBs (`flip_winding`), and
+`scripts/blender-people.py` emits its triangles in reversed order; the
+normals are the author's either way. The renderer is unchanged, so the
+generated geometry, which `MeshBuilder` already winds CNA's way, is unaffected.
+
+**Proposed fix.** Either reverse the winding in the importer, so a compiled
+glTF part has the same front-face convention as geometry built against CNA's
+documented state, or document that an application drawing imported parts
+should select `CullClockwise` for them. The first is the one a consumer
+would expect: the importer already converts everything else about the file
+into CNA's conventions.
+
+---
+
+## GLTF-209 — an instanced draw refuses a mesh with a second UV set or a colour attribute
+
+**Severity:** low (an exception with a clear message, at draw time)
+**Affected:** `GraphicsDevice::SetVertexBuffers` (REMED-GFX-202's usage claim)
+together with `InstancedRendererEXT`
+
+**What happens.** The device claims each (usage, index) of every bound stream
+once, and refuses a stream that repeats *some* of an earlier stream's
+usages. The instance-transform stream `InstancedRendererEXT` binds at slot 1
+collides with a mesh that carries `TEXCOORD_1..3` or `COLOR_0..1` -- which a
+Sketchfab export or a Poly Haven scan's LOD0 (whose colour attribute drives
+its wind rig) routinely does -- and the whole instanced group throws
+`NotSupportedException` and draws nothing. The same mesh drawn without
+instancing is fine.
+
+**Workaround here.** The Blender export steps keep one UV set and no colour
+attributes (`blender-vehicles.py`, `blender-tree-lod.py`).
+
+**Proposed fix.** Give the instance stream usages no imported mesh will
+carry, or let the importer drop attributes the stock effects do not read.
+
+---
+
 ## Second visual pass (2026-09-05): environment notes and behaviour
 
 Nothing below is a CNA defect. Each is something the second visual pass ran
