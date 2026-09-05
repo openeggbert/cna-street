@@ -115,8 +115,9 @@ than noted:
 ## Asset work done
 
 Every sign face, letterform, marking, pane of glass and mesh of the street
-itself is generated from a seed by code in this repository. Thirty-six models
-and fourteen scanned PBR surfaces are not: sixteen Khronos sample models behind
+itself is generated from a seed by code in this repository. Sixty-nine models
+and fourteen scanned PBR surfaces are not; the earlier count below is the
+third pass's, kept as it was written: sixteen Khronos sample models behind
 the shop glass, twenty Poly Haven scans standing in the street, and fourteen
 Poly Haven texture sets on the surfaces the camera gets closest to. Every one
 is declared in `assets/external/manifest.json` with its licence, its files and
@@ -296,21 +297,68 @@ objects the viewer looks at first. Everything below is in
   built with, derived folders, and the credits CC-BY asks for, generated into
   `assets/ATTRIBUTION.md`.
 
+## The fifth visual pass
+
+A sixth pass, with the brief narrowed once more: not more systems and not
+more assets, but the *discontinuities* between the good ones -- the loft
+moving past the authored car, the walk that bent its knees the wrong way, the
+scanned brick on a plane with holes in it, the composed cafe beside a box of
+packets. Everything below is in `docs/visual-overhaul-5/`, with before and
+after frames.
+
+* **The cars driven.** `scripts/blender-vehicles.py` finds each authored
+  car's four tyres -- by material name, by connected pieces of tyre size, or
+  by the objects that stand on the ground -- and splits every wheel off
+  into a node of its own centred on its axle; `CityScene` deals the eight
+  models to all thirty moving vehicles by class, tells the simulation their
+  lengths, and rolls the wheels from a new odometer at their own radius.
+  Not one loft is drawn in a flagship frame.
+* **Gaits.** The walk rebuilt from keyed gait curves with the knee bending
+  the right way (the old one bent every knee forward and a row of eight
+  frozen mid-stride showed it), hip and shoulder counter-rotation, a head
+  that stays on its heading; three walks and three stances dealt per
+  person, strides scaled to height, a lateral spread across the footway,
+  turns over half a second, and one person in six walking with the one in
+  front. `--lineup` freezes eight people at successive phases of the walk.
+* **Facades.** Two-metre windows on the older blocks, and something behind
+  every one: a net curtain, a half-drawn blind, a dark room; keystones and
+  hoods on the masonry blocks, folding shutters on half the rendered ones
+  (one in eight closed), quoins up half the corners. All from a stream of
+  their own, so the rest of the street did not re-deal.
+* **The cafe, and its neighbours.** An oak floor, ceiling beams, boarded
+  panelling and a boarded counter front, timber shelving with bread and
+  baskets, a shelf of tea things, a bench, bronze joinery and a hanging sign
+  outside; and every other shop given the scans its trade would have --
+  crates, cartons, baskets, plants, prints, a clock -- with its stock a stop
+  darker and its tubes a third dimmer.
+* **Mip chains for every imported image.** `ContentManager` looks for a
+  `.cnb` before a loose file, so the content build compiles every image a
+  model refers to under its own full name with a chain, in the colour space
+  `scripts/model-textures.py` reads off the model: the workaround for
+  GLTF-206 on this side of the framework, and what let the two closest cars
+  carry 2k paint.
+* **Supersampled stills.** `--supersample 2` renders a still at twice the
+  size and box-filters it down in linear light: the flagship frames.
+* **Tests.** A gait suite (a knee bends one way, an arm swings against its
+  leg, the legs are half a cycle apart, the three walks differ), and cases
+  for companions, strides, the lineup and the odometer.
+
 ## Next
 
-* **Moving traffic.** Only the parked cars are authored; a car driving past
-  the camera is still a loft, because the authored models do not separate
-  their wheels and a moving car needs wheels that turn. Splitting the wheels
-  by node in the Blender step and submitting them the way the lofts' are is
-  the next step.
+* **Brake lights on the authored cars.** A driven authored car shows no lit
+  lens when it brakes; the loft did. A per-part emissive override for the
+  parts whose material is named for a lamp is the next step.
+* **Paint variety in the traffic.** Eight models over thirty moving cars
+  means the same red Mini twice in one frame. A tint on the body-paint part
+  where the texture is neutral enough to take one.
 * **Faces at two metres.** MakeHuman's skins are painted, and at
   conversational distance a painted face is a painted face; at four metres,
   where a street is seen from, they hold. A scanned skin under CC0, or a
   higher-resolution skin texture, is the next step for the close viewpoints.
-* **Mips for imported images.** GLTF-206 caps every scanned prop and every
-  car at 1k. Loading a model's own images through the catalogue's compiler --
-  which `scripts/blender-people.py` already does for the people -- would lift
-  the cap for the cars too.
+* **The props at 2k.** With every imported image compiled with a mip
+  chain, the 1k cap on the Poly Haven scans is texture memory rather than
+  shimmer; the hydrant and the trees would take 2k where the cameras get
+  closest.
 * **The other shops.** One is composed; the rest are dressed boxes. The hero
   cafe is the template.
 * **Dynamic reflections.** The probes hold the static street. A moving car is

@@ -507,3 +507,64 @@ benches, planters, manhole covers are instanced everywhere -- but its trees
 are the generated ones and its bays hold generated cars. That is how
 environment art is done: the eye judges a place by what it can inspect, and
 the budget goes where the eye goes.
+
+## The weakest prominent object sets the level of the frame
+
+The fifth pass was run on one heuristic: at every flagship viewpoint, find
+the first object the eye identifies as fake, fix it, render again. That
+sounds obvious and is not what the earlier passes did -- they added
+systems, then assets, and each addition made the thing beside it look
+worse. An authored Astra parked beside a lofted car in the travel lane is
+not "one good car and one adequate one"; it is a frame that demonstrates
+what a loft looks like. The same goes for a scanned tree beside a
+generated one, a composed cafe beside a box of packets, and a scanned
+brick on a plane with sixty identical holes in it. The rule that came out
+of it: never let two adjacent things be two quality generations, and where
+that cannot be afforded, take the better one out rather than leave the
+worse one in.
+
+## Driving a car whose author did not separate the wheels
+
+An authored car model from Sketchfab is one mesh, or forty, and the
+wheels are wherever the author left them: a material named `Tire_MAT`, an
+object named `Wheel 2.003`, a node named `gum025` whose children are the
+tyres, or nothing at all -- the Astra is a soup of three hundred thousand
+loose triangles with doubled vertices along every seam. To drive it the
+scene needs four wheels it can roll and steer, so
+`scripts/blender-vehicles.py` finds them rather than trusting the file. A
+tyre is the one part of a car that is a cylinder of a known size standing
+on the ground, and three things can name it: a material with a tyre word
+in it, a connected piece of the merged mesh whose bounds are a tyre's, or
+the objects that touch the ground once the backdrop is dropped. Whichever
+finds four, the axle is then the centre of each tyre's own bounding box --
+not the ground, which the front pair may hang a hand above, and not the
+contact patch, which sits to one side on a model a few centimetres off
+level; the first version took both and every wheel hopped. Everything
+whose bounds lie inside the tyre's cylinder turns with it (rim, cap,
+disc), a caliper does not, and each wheel is written as a node centred on
+its axle so the scene reads the axle off the node transform. The lofts'
+`wheelAngle` could not drive them: it is scaled by the loft's radius and
+wraps at one turn of that wheel, so a wheel of another radius jumped once
+a revolution. An odometer that never wraps did.
+
+## A walk is several curves, not one sine
+
+The first walk was a sine per joint: a thigh swinging, a knee bending
+whenever the leg was behind, arms opposite. A row of eight figures frozen
+at successive eighths of the cycle -- the pedestrian lineup now does this
+-- showed two things at once: every knee bent forward, because the
+skeleton's positive pitch swings a bone's far end backward and the sign
+had been guessed, and the gait had one shape where a walk has several.
+The rebuilt walk is keyed: the thigh forward to heel strike, back through
+stance to toe-off at six tenths of the cycle, forward through swing; the
+knee nearly straight at heel strike, a little flex under load, straight
+at mid-stance, sixty degrees at mid-swing; the ankle toes-up on landing
+and toes-down on push-off; the arm against the leg on its own side and
+trailing it a little; the pelvis bobbing twice, swaying onto the stance
+leg, carrying the swinging hip forward; the trunk counter-rotating and
+leaning in; the head turning back against the trunk. Three amplitudes of
+it make three gaits, three stances make three ways of waiting, and each
+person is dealt one of each with a stride scaled to their height -- the
+clip's clock is distance over stride, so the feet stay on the ground in
+all of them. The signs are pinned by `gait_tests`, which refuses a knee
+that bends forward.

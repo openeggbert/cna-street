@@ -599,6 +599,14 @@ than one cascade so the palette upload is proven per-cascade.
 
 ### GLTF-206 — imported glTF textures arrive without a mip chain
 
+> **Fifth-pass note (2026-09-05).** Worked around on the `cna-street` side
+> without touching CNA: the content build compiles every image a model
+> refers to under its own full file name (`<image>.png.cnb`) with a mip
+> chain, and `ContentManager`'s cnb-before-loose precedence makes the model
+> pick it up. The framework-side fix below is still the right one -- every
+> consumer of the importer would otherwise repeat this build step -- but it
+> no longer blocks anything here. See `docs/cna-findings.md`, GLTF-206.
+
 **Category:** Missing capability — **a known, deliberate deferral in CNA**
 **Class:** A, but tracked upstream already
 **Severity:** Medium
