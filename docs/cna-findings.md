@@ -557,3 +557,52 @@ those steps.
   project needed to ask before allocating anything.
 * **`RenderPipelineSettings::toStringEXT`/`applyFromStringEXT`** is a ready-made
   settings-file format that deserves to be better advertised.
+
+---
+
+## Third visual pass (2026-09-05): environment notes and behaviour
+
+Nothing below is a CNA defect. CNA was consumed read-only throughout at
+`next` `e1d3aa5`, with sharp-runtime `next` `c3fbb95`; the pass added scanned
+surfaces and scanned props and recalibrated the light, all inside this
+repository.
+
+**A `.gltf` with external images imports as cleanly as a `.glb`.**
+`cna_tool_gltf_to_cnb` reads a document, its `.bin` and a `textures/` folder
+of JPEGs and PNGs, and absorbs the images into the `.cnb` (the compiler
+reports "N file(s) absorbed"); `ContentManager::Load<Model>` then hands each
+part a `PbrEffect` with its base colour, normal and metallic-roughness maps
+bound. Twenty Poly Haven models went through it without a change to the
+files. The one thing that did not work was on this side: `MaterialLibrary::add`
+overwrote the effect's texture pointers with the null an empty upload returns,
+which had left every imported model since the first overhaul untextured. That
+is fixed here and recorded in `docs/design-notes.md`.
+
+**GLTF-206 still applies, and scanned props feel it.** A model's textures
+arrive at one mip level, so a 1k scan on a 40 cm hydrant aliases past a few
+metres. The props here are fetched at Poly Haven's 1k rather than 2k or 4k for
+that reason, which is a resolution ceiling this project would rather not have
+chosen. Role-aware mip generation at import remains the framework-side fix.
+
+**`ImageBasedLightEXT` accepts an irradiance cube convolved from a different
+image than its prefiltered specular.** The probes now hand the effect an
+irradiance convolved from the capture multiplied by `probeBounceGain` and a
+specular convolved from the plain capture, both at the sky cube's scale under
+one `Intensity`, and the effect is indifferent. Worth a line in the
+documentation of the bundle: the three products need not come from one image,
+only from one scale.
+
+**Blender 4.2+ exports foliage as `alphaMode: BLEND`** whatever the material's
+render method says, and CNA honours that faithfully: the leaves draw in the
+transparent phase without depth writes and a crown of leaf cards becomes a
+ghost. Not a CNA matter -- `scripts/glb-mask-leaves.py` rewrites the material
+to MASK before the import -- but the next person importing a Blender tree will
+meet it.
+
+**The normal-map convention of this project's own meshes is DirectX.** Also
+not a CNA matter, but found while using it: `MeshBuilder`'s tangent handedness
+puts the bitangent along increasing v, the catalogue's generator writes green
+the same way, and a glTF-convention scan laid on those meshes renders inside
+out until its green channel is inverted. Imported models carry their own
+tangents and are unaffected. The finding and the test that settled it are in
+`docs/design-notes.md`.

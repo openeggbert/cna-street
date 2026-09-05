@@ -23,14 +23,17 @@ makes the whole street feel small in a way nobody can put their finger on.
 Street furniture matters most of all, because it is the scale reference a viewer
 actually uses. A building could be any size; a bench could not.
 
-## Every surface is generated, and that is architectural. Sixteen models are not.
+## The street is generated, and that is architectural. Its objects, and now fourteen of its surfaces, are not.
 
-That heading used to read "everything is generated", and the change is worth
-explaining rather than quietly making.
+That heading has been rewritten twice. It read "everything is generated", then
+"every surface is generated, sixteen models are not", and each change is worth
+explaining rather than quietly making; the latest is under *Scanned surfaces
+beside generated ones* below.
 
-There is still no downloaded texture, font or sound anywhere in this repository,
-and every surface, sign and glyph comes from code. That is not a way of avoiding
-a licence question — it is a set of properties worth having:
+There is still no downloaded font or sound anywhere in this repository, and
+every sign, glyph, marking, piece of glass, weathering decal and far facade
+comes from code, as does every mesh of the street itself. Generation is not a
+way of avoiding a licence question — it is a set of properties worth having:
 
 * A generated surface can be produced at any resolution.
 * It tiles by construction, rather than because someone made it tile.
@@ -394,3 +397,113 @@ disagree), or a plugin system.
 It does have one enum with 70 entries, one dimension header, one mesh builder,
 and generators that read like descriptions of the thing they build. Where there
 is a class, it is because something owns state that outlives a function.
+
+## Scanned surfaces beside generated ones
+
+The section above that says every surface is generated is no longer true, and
+the reason it stopped being true is worth more than the sentence it replaces.
+
+The second pass ended with a street whose proportions, layout and light were
+right and whose *surfaces* still said "procedural": a render that was a noise
+field with speckles, a footway that was a grid with a crack texture, an
+asphalt that was dark grey with weather on it. Each generator had been pushed
+about as far as a description of a material can go in code, and the gap that
+remained was the gap between a description and a photograph. So fourteen of
+the surfaces the camera gets closest to are now photogrammetry scans from Poly
+Haven, all CC0: the asphalt, the paving slabs, the kerb, three bricks, the
+render, the ashlar, the concrete panels, the roof tiles, the plane-tree bark
+and the shop floor. Everything else -- signs, glass, markings, packaging,
+weathering, the interior atlas, the far facades -- is still generated, because
+those are things a scan cannot be *of*.
+
+Three decisions made the scans fit a catalogue built for generators.
+
+**A scan replaces a generated surface by name, in the content build, and
+nowhere else.** `scripts/prepare-surfaces.py` writes the three maps under the
+catalogue's own name over the ones the bake wrote, and the runtime loads
+whatever the content root holds. A tree that has not fetched the scans gets
+the generated surfaces; a tree without a content build gets them too. Nothing
+in the material catalogue names a scan.
+
+**The render is neutralised, not replaced per colour.** The catalogue tints
+one white plaster seven ways, and a scanned plaster arrives cream. Dividing
+every texel by the image's mean colour in linear light keeps the pattern as a
+set of ratios -- the trowel marks, the hairline cracks, the dirt under the
+sills -- and removes the cast, so seven facade colours still cost one texture.
+
+**A scan's maps mean what they say.** The catalogue divides each declared
+roughness by what its generator wrote, because the generator wrote the
+intended value into the map and the factor both. A scan's roughness map is a
+measurement, so for a scanned surface the factors are 1 and the map is the
+answer. `authored.txt` in the content root says which surfaces those are,
+carries the UV scale that maps the geometry's tile onto the scan's physical
+size -- a 3 m asphalt scan over a 5 m road tile is a scale of 1.667, and a
+brick the size of a brick is the whole point -- and says whether the tint is
+kept.
+
+## Which way is up in a normal map
+
+The scans arrived in the OpenGL convention, green up the image, which is what
+glTF specifies and what the imported models use. Laid on this project's own
+meshes they rendered inside out, and it took a synthetic map of hemispherical
+bumps under a low sun to see it: the bumps came out as bowls. The mesh
+builder's tangent frame sets its handedness so that the bitangent runs along
+*increasing* v -- down the image -- which is the opposite of the glTF
+convention's, and the catalogue's own generator has always written green along
+increasing v to match. Both are self-consistent and neither is wrong; they are
+the DirectX convention, and a scan has to be converted to it. The imported
+models keep their own tangent frames from their own files and are unaffected.
+`prepare-surfaces.py` inverts green unless the manifest says the scan is
+already DirectX, and the reason is written where the flag is.
+
+## An imported model's textures were being thrown away
+
+The shop-window props imported in the first overhaul had been rendering
+without their textures since the day they were added, and nobody noticed
+because a vase of flowers is white and a cardboard box is brown with or
+without one. `MaterialLibrary::add` uploaded whatever maps it was handed and
+stored the results in the material -- including the null an empty map uploads
+to -- over the pointers the importer had already put there. The scanned street
+props made it obvious: a chalkboard is not white. The fix is one condition per
+map; the lesson is that a fallback that looks plausible is more dangerous than
+one that looks broken.
+
+## One bounce is not enough
+
+With the surfaces right the light was wrong in a way the first two passes had
+tuned around rather than fixed: the frame was a stop and a half underexposed,
+the sky was brighter than a sunlit wall, and the shade was black. The sun was
+3.0 against a sky whose horizon radiance was 1.3, which is a sky three to four
+times too bright for its sun, and the exposure of 0.42 had been chosen to keep
+that sky from clipping. The defaults are now sun 4.2, sky 0.85 and exposure
+0.9: a sunlit render at about 85 % on the display, a zenith at about 55 %, and
+the shade a little under three stops down, which is what a photograph of a
+street on a clear day shows.
+
+The shade needed one more thing. The reflection probes give every surface the
+irradiance of the street it stands in, which is right, and what they capture
+is one bounce, which is not enough: the wall opposite is in the capture, the
+light that wall throws onto the wall beside it is not, and in a canyon of
+light render most of the ambient light has bounced more than once. Turning the
+probes' irradiance off and using the sky's put the shade where it belonged and
+lost the canyon; multiplying the capture by 1.6 before its irradiance is
+convolved -- `probeBounceGain`, about the geometric series for walls of 0.45
+albedo seeing half a hemisphere of each other -- keeps the canyon and lifts
+the shade the same amount. The specular keeps the plain capture, because a
+reflection is a picture and a picture is not brightened by the light behind
+the camera. The sky's own environment also gained the sunlit ground under it,
+which lights the underside of a car and the soffit of a shopfront and was
+missing.
+
+## The hero corridor
+
+Not every plot got the same attention, on purpose. The showcase viewpoints
+stand on the west footway of the main street between the junction and about
+sixty metres north of it, and that stretch is where the scanned trees stand,
+where the covered car is parked, where the cafe tables are out and the
+deliveries are stacked by the doors. The rest of the district gets the same
+scanned surfaces and the same scanned furniture -- hydrants, cabinets,
+benches, planters, manhole covers are instanced everywhere -- but its trees
+are the generated ones and its bays hold generated cars. That is how
+environment art is done: the eye judges a place by what it can inspect, and
+the budget goes where the eye goes.

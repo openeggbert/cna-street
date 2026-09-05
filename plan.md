@@ -114,10 +114,15 @@ than noted:
 
 ## Asset work done
 
-Every surface, sign face, letterform and mesh in the project is generated from
-a seed by code in this repository. Nothing was downloaded, so there is nothing
-whose licence has to be tracked; `assets/ATTRIBUTION.md` says so and says what
-would have to happen if that ever changed.
+Every sign face, letterform, marking, pane of glass and mesh of the street
+itself is generated from a seed by code in this repository. Thirty-six models
+and fourteen scanned PBR surfaces are not: sixteen Khronos sample models behind
+the shop glass, twenty Poly Haven scans standing in the street, and fourteen
+Poly Haven texture sets on the surfaces the camera gets closest to. Every one
+is declared in `assets/external/manifest.json` with its licence, its files and
+their digests, fetched rather than committed, and checked by
+`scripts/validate-assets.py`, which CTest runs. `assets/ATTRIBUTION.md` is
+generated from the manifest.
 
 ## CNA issues found
 
@@ -214,8 +219,59 @@ started from beside the frame it ended at.
 * **Tests.** A tenth suite for the invariants behind all of the above, one of
   which found the tail-lamp bug on its first run.
 
+## The third visual pass
+
+A fourth pass over the rendered result, with a different acceptance criterion:
+not "is this a convincing street" but "is this close to an environment-art
+screenshot", and a different strategy: content before systems. Everything
+below is in `docs/visual-overhaul-3/`, with before and after frames.
+
+* **Scanned surfaces.** Fourteen Poly Haven PBR scans, all CC0, replace the
+  generated asphalt, paving, kerb, three bricks, render, ashlar, concrete
+  panels, roof tiles, plane bark and shop floor -- by name, in the content
+  build, through `scripts/prepare-surfaces.py`, with the render neutralised so
+  the catalogue can still tint it seven ways, the maps taken at face value,
+  and the UV scale that keeps a brick the size of a brick. The generated
+  surfaces stand wherever a scan is not fetched.
+* **Scanned props.** Twenty Poly Haven models through CNA's own glTF importer:
+  hydrants, cabinets, benches, planters with shrubs, cafe tables and A-boards
+  outside the bakeries, crates and cartons by the doors, refuse sacks by the
+  bins, manhole covers on the crown of the road, a car under a cover in a bay
+  of the hero block. Each with the generated stand-in it replaces kept as the
+  fallback.
+* **Hero trees.** A scanned small tree cut in Blender to a near and a far
+  street level of detail by `scripts/blender-tree-lod.py`, stood at the pits
+  nearest the showcase viewpoints and scaled to a street tree's height; the
+  generated trees everywhere else.
+* **Light.** Sun 4.2, sky 0.85, exposure 0.9 in place of 3.0, 1.0 and 0.42: a
+  sunlit wall at 85 % on the display instead of 35 %, a sky darker than the
+  wall rather than brighter, and the shade three stops down rather than five.
+  The probes' irradiance convolved from the capture at 1.6x for the bounces a
+  single capture cannot hold, and the sunlit ground added to the sky's own
+  environment.
+* **A bug that predated all of it.** Every imported model had been drawing
+  untextured since the first overhaul; the scanned props made it obvious and
+  a one-condition fix in `MaterialLibrary::add` restored the textures on the
+  Khronos shop props too.
+* **The manifest, the fetch script and the licence gate** extended to
+  multi-file assets, derived files and scanned surfaces, and the gate
+  registered with CTest.
+
 ## Next
 
+* **Vehicles.** The one thing in the hero corridor that is still a loft rather
+  than a scan. No realistic car under a licence this repository can carry was
+  found on Poly Haven or in the Khronos set; the covered car is the one scanned
+  vehicle. Better body curvature, real panel shut lines and a clearcoat are
+  the next procedural step, and a licensed hero car the step after.
+* **People.** Still mannequins at four metres, and the showcase viewpoints now
+  keep them out of the foreground for that reason. A textured, rigged figure
+  under a clean licence -- or the imported rig once GLTF-208 is understood --
+  is the answer; more generator work is not.
+* **Shop interiors.** Rooms with a real floor now, and props with their
+  textures at last, and still shelves of packets behind a pale plinth. Scanned
+  shelving and stock, and a darker, deeper room, are where the next pass
+  starts.
 * **Dynamic reflections.** The probes hold the static street. A moving car is
   reflected in a shop window only through the sky cube, and a person not at
   all. A probe re-captured every few frames near the camera, or a planar
