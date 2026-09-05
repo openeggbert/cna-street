@@ -306,6 +306,83 @@ there — with the colour space as an argument rather than an assumption, becaus
 averaging sRGB-encoded texels as if they were light darkens every level, and a
 data map must be averaged exactly as it is stored.
 
+## A reflection is a picture of the street, so take one
+
+The first overhaul's honest conclusion was that a dark car was a dark shape
+and a shop window reflected nothing, and that both were the same problem: the
+only environment the renderer had was the sky. A car door in a street canyon
+reflects the facade opposite, the kerb, the cars parked beyond it and a strip
+of sky between the eaves. None of that is in a sky cube.
+
+Screen-space reflection was tried and dropped, and the reasons stand: it
+cannot reach an alpha-blended pane and it has nothing to show on a rough
+road. What worked is older and simpler. At scene build the static street is
+rendered six ways from twenty-nine points along the carriageways -- over each
+parking lane, at the height of a car door -- into a small cube, and every
+draw near a probe reads its image-based lighting from that cube instead of
+the sky's, through the same `ImageBasedLightEXT` the sky arrives by. The
+effect never knows. The cubes are stored at the sky cube's own scale so one
+`Intensity` serves whichever fills each slot, and convolved by CNA's
+`EnvironmentProcessor` exactly as the sky is, because a second convolution
+would be a second place for the two to disagree.
+
+Three things were not obvious.
+
+**A cube map is addressed from inside, a camera image from outside.** The
+face rendered by a camera looking along +X with +Y up has +Z on its right;
+the cube's +X face has +Z on its left. Every face is mirrored in one axis,
+consistently, and a face copied without the mirror is a reflection of the
+wrong side of the street -- with nothing anywhere to say so. The test suite
+pins the convention against `SkySystem::cubeDirection`.
+
+**Shadows in a probe.** The cascades are fitted to a view frustum, and a
+probe needs shadows in every direction. Fitting them from a camera looking
+straight down at the probe from 55 m puts every surface in the block in the
+same one or two cascades whichever face is drawn, because the receiver
+selects a cascade by depth along the fitting camera. One shadow pass per
+probe, not six.
+
+**Eight bits.** The capture target is `Color`, and a sunlit wall is 1.6.
+Rendered at half brightness with the effect's sRGB encode on and decoded on
+the CPU, a dark road keeps a dozen shades and the wall survives; the sun disc
+clips, and a clipped sun disc in a reflection is a glint.
+
+What it costs is seven seconds at start-up and nothing per frame: a probe is
+a texture bound for a run of draws. What it buys is the largest single
+change in the second pass -- a black car with a horizon on it.
+
+## Glass is a reflection over what it covers
+
+The probes made the second half of the same problem visible. A pane of glass
+was blended as a coloured filter: `out = lit * alpha + behind * (1 - alpha)`,
+under `RenderPipeline`'s `NonPremultiplied` state. Its Fresnel reflection was
+multiplied by a 0.24 alpha and vanished, and a pale base colour under that
+blend painted a milky wash over every interior on the street.
+
+Physically the pane is two layers: a reflection, at full Fresnel strength,
+and behind it whatever the glass transmits. That is `out = lit + behind *
+(1 - alpha)`, which is XNA's premultiplied `AlphaBlend` applied to an effect
+that does not premultiply -- and the pipeline's blend state turns out to be
+a default, not a contract, so a material can ask for it. Under that blend the
+base colour is the tint of the *reflection layer*, near black for clear
+glass, and the alpha is how much the pane blocks of what stands behind it:
+0.14 for a shop window, 0.55 for tinted automotive glazing. The shop
+interiors then had to come down by half, because a lit room seen through a
+clean pane from a sunlit pavement is not brighter than the pavement.
+
+## Weathering is causal, or it is noise
+
+The first overhaul put rain streaks in the render texture, evenly, and they
+read as noise, because a tiling material cannot know where a sill is. Real
+staining hangs *from* something: it fans down from under a sill where the
+drip has failed, it rises from the pavement where the rain bounces, it
+follows a leaking downpipe joint down the wall. So the streaks are decals now,
+placed by the thing that causes them, a few millimetres over the wall, and
+each one more likely and longer on a plot with a higher weathering value.
+One building is grubby and its neighbour freshly painted, which is what a
+street is; the tiling texture keeps only the fine stipple and one crack every
+few metres.
+
 ## What "no fake complexity" meant in practice
 
 The project deliberately does not have: a scene graph (a street does not move),

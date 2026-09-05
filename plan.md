@@ -172,13 +172,64 @@ defects were found by looking at pictures:
 * **Performance.** +15% over the pre-overhaul baseline, after finding that the
   cost was draw calls rather than triangles and taking 1 997 of them to 1 356.
 
+## The second visual pass
+
+A third pass over the rendered result, with the first overhaul's own list of
+what still gave the street away as the brief: car paint with nothing to
+reflect, shop glass that reflected nothing, a far context of printed boxes.
+Everything below is in `docs/visual-overhaul-2/`, with the frame each change
+started from beside the frame it ended at.
+
+* **Reflection probes.** The static street captured six ways into a cube from
+  twenty-nine points along the carriageways at scene build, convolved by
+  `EnvironmentProcessor` exactly as the sky is, and bound per draw through the
+  same `ImageBasedLightEXT` the sky arrives by. A black car has a horizon on
+  it; a shop window reflects the cars parked in front of it. Seven seconds at
+  start-up, nothing per frame.
+* **Glass.** Blended as reflection plus attenuated background -- premultiplied
+  `AlphaBlend` set per draw inside the pipeline's transparent phase -- with a
+  near-black reflection-layer tint and a low alpha, instead of a pale coloured
+  filter that multiplied the Fresnel term by 0.24.
+* **Shops.** Rooms painted to their trade in a front and a back shade, tube
+  fittings a hand wide, posters on the walls, packaged stock instead of
+  confetti, one unit in six shut behind a roller blind, and half the light.
+* **Vehicles.** Tail clusters a hand tall that wrap the corner *toward* the
+  car rather than 26 cm out behind it, brake lenses on the lamps they light
+  rather than slabs on the bumper, chromed headlamp reflectors, a grille with
+  slats and a badge, a roof aerial.
+* **Facades.** Weathering as decals hung from the thing that causes it -- sill
+  run-off, splash at the plinth, downpipe stains -- scaled by each plot's own
+  weathering value; the render's crazing cut to one crack every few metres;
+  planters and chairs on the balconies; satellite dishes.
+* **The district beyond.** Kerbs, footways and carriageways continued to the
+  far block; the blocks lining them with real window recesses, shopfronts,
+  plinths and cornices; cross streets every third block; the same trees and
+  parked cars along them.
+* **Night.** A deep blue twilight sky with the afterglow kept to the sun's
+  side, clouds that take the sky's colour once the sun is down, half a stop
+  more exposure.
+* **The street.** Bicycles on the stands, collars on the coats, caps on a few
+  heads, six greens for six trees, a tree viewpoint aimed at a tree, and two
+  photographic viewpoints.
+* **Tests.** A tenth suite for the invariants behind all of the above, one of
+  which found the tail-lamp bug on its first run.
+
 ## Next
 
-* **Reflections.** Screen-space reflections were tried and dropped: they wash
-  out a shop interior and cannot reach alpha-blended glass at all, and the road
-  is far rougher than any SSR cutoff. A shop window that reflects the car parked
-  in front of it needs either a planar reflection or glass drawn before the
-  pass.
+* **Dynamic reflections.** The probes hold the static street. A moving car is
+  reflected in a shop window only through the sky cube, and a person not at
+  all. A probe re-captured every few frames near the camera, or a planar
+  reflection for the nearest shopfront, is the next step for the one surface
+  where it would still show.
+* **Parallax-corrected probes.** A surface reads its probe's cube as though
+  it stood at the probe. Box-projecting the lookup against the street's
+  building lines would need the reflection direction remapped in the shader,
+  which `PbrEffect` does not expose; a custom `ShaderEffect` for glass alone
+  could do it.
+* **People.** Still the weakest thing at two metres: a face is two eyes, a
+  brow and a nose, and the clothing is one colour per garment. Faces and
+  garment detail are texture work, and a texture atlas per figure is also the
+  largest remaining draw-call saving.
 * **An imported rig that draws.** `GLTF-208` is unresolved: the skeleton, the
   clip and the palette all round-trip correctly through the compiled model and
   the mesh renders nothing. Index element size is now ruled out — the models

@@ -487,6 +487,64 @@ documentation claiming it walks there, would be worse than a missing feature.
 
 ---
 
+## Second visual pass (2026-09-05): environment notes and behaviour
+
+Nothing below is a CNA defect. Each is something the second visual pass ran
+into or relied on, recorded because the next session will meet it too. CNA
+was consumed read-only throughout; the revision was `next` `34c5a9d`, with
+sharp-runtime `next` `c3fbb958`.
+
+**The CNAEXT engine layer is on `next`, not `develop`.** A CNA checkout on
+`develop` (`1bb2145` at the time) has nine headers in
+`modules/graphics-ext/include/CNA/Graphics/` where `next` has ninety-three;
+`CascadedShadowMap`, `RenderPipeline`, `AtmosphericSky`, `EnvironmentProcessor`
+and the rest are absent, `develop..next` is 904 commits, and this project does
+not compile against it. `dependencies.lock` now says so. CNA resolves
+sharp-runtime as its own sibling by default and exposes
+`CNA_SHARP_RUNTIME_ROOT` to point it elsewhere, which is how a `next` CNA is
+paired with a `next` sharp-runtime when both `develop` checkouts sit beside it.
+
+**`RenderPipeline` sets `BlendState::NonPremultiplied` for the transparent
+phase, and a draw inside the phase may override it.** The callback given to
+`setTransparentScene` runs with that state bound, and `PbrEffect` does not
+premultiply its output by alpha, so a blended surface composites as
+`lit * alpha + behind * (1 - alpha)`: a pane of glass at alpha 0.24 kept a
+quarter of its reflection. Setting `BlendState::AlphaBlend` (premultiplied:
+one, inverse source alpha) from inside the callback before the draw is
+honoured and gives `lit + behind * (1 - alpha)`, which is what a reflection
+over a transparent layer is. This project does that per material
+(`Material::premultipliedBlend`). Worth a line in the `setTransparentScene`
+documentation: the blend state is a default, not a contract.
+
+**`ImageBasedLightEXT` may change per draw.** `PbrEffect::setImageBasedLightEXT`
+is designed for one environment per scene, but nothing prevents a different
+bundle per `Apply`, and the effect rebinds the cubes correctly. The
+reflection probes here depend on it: twenty-nine prefiltered cubes at 64 px,
+each bound for the draws nearest its position, at no measurable frame cost on
+this rasteriser. The three products in a bundle must share one scale, since
+`Intensity` is a single multiplier -- a probe cube stored at a different scale
+from the sky's irradiance cube would need two.
+
+**`CascadedShadowMap::update` fits from a perspective projection only.** The
+fit scales the near corners by `depth / near` to build each cascade's slice,
+which is exact for a perspective frustum and meaningless for an orthographic
+one. A capture that needs shadows in all directions from a point -- a
+reflection probe -- therefore fits the cascades from a camera looking straight
+down at the point from 55 m with a wide field of view, so every surface in
+the block falls in the same one or two cascades whichever face is drawn. The
+receiver selects a cascade by depth along the *fitting* camera, as
+`ShadowCascadeStateEXT::CameraView` documents, which is what makes one fit
+serve six faces.
+
+**`Texture2D::GetData` on an 8-bit render target is the only readback.** There
+is no `GetData` into `Vector4` or `HalfVector4`, so a capture that has to hold
+HDR radiance goes through `Color`: this project renders the probe faces at
+half brightness with the effect's own sRGB encode on, decodes on the CPU and
+re-encodes at the sky cube's scale. A float readback would remove three of
+those steps.
+
+---
+
 ## Not defects — behaviour worth knowing
 
 * **`CNA_CNAEXT` defaults to `OFF`.** Every `CNA/Graphics/*.hpp` header is
